@@ -12,9 +12,10 @@ Options:
   -d DIR --data DIR             The directory with files [default: .]
   -t DIR --templates DIR        The directory with templates
   --worker-class=CLASS          Gunicorn worker class [default: sync]
+  --nb-workers WORKERS          Number of workers
 
 """
-
+import functools
 import os
 import re
 import mimetypes
@@ -31,6 +32,7 @@ import pkg_resources
 from six.moves.urllib.parse import unquote
 from six import string_types
 
+from pydap.wsgi.functions import cached_meta
 from ..lib import __version__
 from ..handlers.lib import get_handler, load_handlers
 from ..exceptions import ExtensionNotSupportedError
@@ -55,7 +57,7 @@ class DapServer(object):
 
         # set the rendering environment; this is also used by pydap responses
         # that need to render templates (like HTML, WMS, KML, etc.)
-        self.env = Environment(loader=ChoiceLoader(loaders))
+        self.env = Environment(loader=ChoiceLoader(loaders), autoescape=True)
         self.env.filters["datetimeformat"] = datetimeformat
         self.env.filters["datetimeformat_iso"] = datetimeformat_iso
         self.env.filters["unquote"] = unquote
@@ -100,12 +102,23 @@ class DapServer(object):
         content = [
             os.path.join(directory, name) for name in os.listdir(directory)]
 
-        files = [{
-            "name": os.path.split(path)[1],
-            "size": os.path.getsize(path),
-            "last_modified": datetime.fromtimestamp(os.path.getmtime(path)),
-            "supported": supported(path, self.handlers),
-        } for path in content if os.path.isfile(path)]
+        files = []
+        for path in content:
+            if not os.path.isfile(path):
+                continue
+
+            is_supported = supported(path, self.handlers)
+
+            # Lambda function for lazy fetch of metadata
+            meta_f = functools.partial(cached_meta, path, self.handlers) if is_supported else None
+
+            files.append(dict(
+                name= os.path.split(path)[1],
+                size= os.path.getsize(path),
+                last_modified= datetime.fromtimestamp(os.path.getmtime(path)),
+                supported= is_supported,
+                get_metadata=meta_f))
+
         files.sort(key=lambda d: alphanum_key(d["name"]))
 
         directories = [{
@@ -280,12 +293,14 @@ def main():  # pragma: no cover
         static = ("pydap.wsgi", "templates/static")
     app = StaticMiddleware(app, static)
 
+    nb_workers = arguments.get("--nb-workers", None) or multiprocessing.cpu_count() * 2 + 1
+
     # configure WSGI server
     pydap_app = PyDapApplication(
         app,
         host=arguments["--bind"],
         port=int(arguments["--port"]),
-        workers=multiprocessing.cpu_count() * 2 + 1,
+        workers=nb_workers,
         worker_class=arguments["--worker-class"])
 
     pydap_app.run()

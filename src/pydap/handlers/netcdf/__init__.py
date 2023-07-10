@@ -10,7 +10,7 @@ import numpy as np
 from pkg_resources import get_distribution
 
 from ...model import DatasetType, GridType, BaseType
-from ..lib import BaseHandler
+from ..lib import BaseHandler, CFMetaData, Contact
 from ...exceptions import OpenFileError
 from ...pycompat import suppress
 
@@ -110,6 +110,56 @@ class NetCDFHandler(BaseHandler):
             message = 'Unable to open file %s: %s' % (filepath, exc)
             raise OpenFileError(message)
 
+    def get_cf_metadata(self) -> CFMetaData:
+
+        attributes = self.dataset.attributes["NC_GLOBAL"].copy()
+
+        return CFMetaData(
+            title=attributes.pop('title', None),
+            summary=attributes.pop('summary', None),
+            keywords=clean_split(attributes.pop('keywords', None)),
+            license=attributes.pop('license', None),
+            creators=parse_contacts(attributes, "creator"),
+            project=attributes.pop("project", None),
+            publishers=parse_contacts(attributes, "publisher"),
+            **attributes) # All other attributes
+
+
+def clean_split(strval, separator=",") :
+    if strval is None or strval == "":
+        return []
+    return [part.strip() for part in strval.split(separator)]
+
+
+def parse_contacts(attributes, prefix):
+
+    name_prefix = prefix + "_name"
+    email_prefix = prefix + "_email"
+    url_prefix = prefix + "_url"
+
+    if not name_prefix in attributes:
+        return []
+
+    names = clean_split(attributes.pop(name_prefix))
+    emails = clean_split(attributes.pop(email_prefix)) if email_prefix in attributes else [None]
+    urls = clean_split(attributes.pop(url_prefix)) if url_prefix in attributes else [None]
+
+    # Expand email and or URL if they don't match
+    if len(names) > 1:
+        if len(emails) == 1:
+            emails = len(names) * emails
+        if len(urls) == 1:
+            urls = len(names) * urls
+
+    # Not same number of items ? => Concatenate back
+    if len(emails) != len(names) or len(urls) != len(names):
+        names = [", ".join(names)]
+        emails = [", ".join(emails)]
+        urls = [", ".join(urls)]
+
+    return [
+        Contact(name=name, email=email, url=url)
+        for name, email, url in zip(names, emails, urls)]
 
 class LazyVariable:
     def __init__(self, source, name, path, filepath):

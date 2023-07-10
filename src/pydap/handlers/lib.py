@@ -78,6 +78,43 @@ def get_handler(filepath, handlers=None, instantiate=True):
         'No handler available for file {filepath}.'.format(filepath=filepath))
 
 
+class Contact:
+    def __init__(self, name, email=None, url=None):
+        self.name=name
+        self.email=email
+        self.url=url
+
+class CFMetaData :
+    """CF and ACCD metadata extracted from the file"""
+
+    def __init__(self,
+        title=None,
+        summary=None,
+        keywords=[],
+        license=None,
+        creators=[],
+        publishers=[],
+        **others):
+
+        self.title = title
+        self.summary = summary
+        self.keywords = keywords
+        self.creators = creators
+        self.publishers = publishers
+        self.license = license
+        self.others = others
+
+    def __bool__(self):
+        """ Implement truthy / flasy values to be able to do 'if metadata' """
+        vals = self.__dict__.copy()
+        others = vals.pop("others")
+        for key, val in vals.items() :
+            if val:
+                return True
+        if len(others) > 0:
+            return True
+        return False
+
 class BaseHandler(object):
 
     """Base class for pydap handlers.
@@ -159,6 +196,10 @@ class BaseHandler(object):
         dataset = apply_projection(projection, dataset)
 
         return dataset
+
+    def get_cf_metadata(self) -> CFMetaData:
+        """should return Metadata following CF conventions """
+        return None
 
     def close(self):
         """Optional method for closing the dataset."""

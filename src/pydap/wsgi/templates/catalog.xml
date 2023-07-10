@@ -1,20 +1,67 @@
 <?xml version="1.0" ?>
+{% macro contact(co) %}
+     <name>{{ co.name }}</name>
+     {% if co.email or co.url -%}
+     <contact url="{{ co.url }}" email="{{ co.email }}" />
+     {% endif %}
+{% endmacro %}
+
 <!-- pydap {{ version }} -->
 <catalog xmlns="http://www.unidata.ucar.edu/namespaces/thredds/InvCatalog/v1.0" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://www.unidata.ucar.edu/namespaces/thredds/InvCatalog/v1.0 http://www.unidata.ucar.edu/schemas/thredds/InvCatalog.1.0.6.xsd">
+    xsi:schemaLocation="http://www.unidata.ucar.edu/namespaces/thredds/InvCatalog/v1.0 http://www.unidata.ucar.edu/schemas/thredds/InvCatalog.1.0.7.xsd">
     <service name="odap" serviceType="OPeNDAP" base="{{ location }}"/>
     <service name="file" serviceType="HTTPServer" base="{{ location }}"/>
     {% for directory in directories %}
     <catalogRef name="{{ directory.name }}" xlink:type="simple" xlink:href="{{ directory.name }}/catalog.xml" xlink:title="{{ directory.name }}" ID="{{ location }}{{ directory.name }}"/>
     {% endfor %}
-    {% for file in files %}
-    {% if file.supported %}
-    <dataset name="{{ file.name }} " ID="{{ location }}{{ file.name }}">
-        <dataSize units="bytes">{{ file.size }}</dataSize>
-        <date type="modified">{{ file.last_modified|datetimeformat_iso }}</date>
-        <access serviceName="odap" urlPath="{{ file.name }}"/>
-        <access serviceName="file" urlPath="{{ file.name }}"/>
-    </dataset>
-    {% endif %}
+    {% for file in files -%}
+        {% if file.supported -%}
+        {% set metadata = file.get_metadata() -%}
+        <dataset name="{{ (metadata.title if metadata else "") or file.name }}" harvest="true" ID="{{ location }}{{ file.name }}">
+
+            {% if metadata -%}
+            <metadata inherited="true">
+
+                {% if metadata.summary -%}
+                    <documentation type="summary" >{{ metadata.summary }}</documentation>
+                {%  endif %}
+                {% if metadata.license -%}
+                    <documentation type="right" >{{ metadata.license }}</documentation>
+                {%  endif %}
+
+                {% for keyword in metadata.keywords -%}
+                    <keyword vocabulary="DIF">{{ keyword }}</keyword>
+                {% endfor %}
+
+                {% if metadata.project -%}
+                    <project>{{ metadata.project }}</project>
+                {%  endif %}
+
+                {% for creator in metadata.creators -%}
+                    <creator>
+                    {{ contact(creator) }}
+                    </creator>
+                {% endfor %}
+
+                {% for publisher in metadata.publishers -%}
+                    <publisher>
+                    {{ contact(publisher) }}
+                    </publisher>
+                {% endfor %}
+
+                {% for key, val in metadata.others.items() -%}
+                    <property name="{{ key }}" value="{{ val }}" />
+                {% endfor %}
+
+            </metadata>
+            {% endif %}
+
+            <dataSize units="bytes">{{ file.size }}</dataSize>
+            <date type="modified">{{ file.last_modified|datetimeformat_iso }}</date>
+            <access serviceName="odap" urlPath="{{ file.name }}"/>
+            <access serviceName="file" urlPath="{{ file.name }}"/>
+
+        </dataset>
+        {% endif %}
     {% endfor %}
 </catalog>

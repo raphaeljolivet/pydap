@@ -21,19 +21,28 @@ automatically discover the new functions from the system.
 """
 
 from datetime import datetime, timedelta
+from os import path
+from datetime import datetime
 import re
+from types import FunctionType
 
 import numpy as np
 
+from UltraDict import UltraDict
+
+from ..handlers.lib import get_handler, BaseHandler
 from ..model import SequenceType, GridType, BaseType
 from ..lib import walk
-from ..exceptions import ConstraintExpressionError, ServerError
+from ..exceptions import ConstraintExpressionError, ServerError, ExtensionNotSupportedError
 from ..pycompat import suppress
 
 with suppress(ImportError):
     import coards
     import gsw
 
+# Cache of key -> (time, value) for time controlled cache of metadata
+# This cache is shared safely between workers
+META_CACHE = UltraDict(name="metadata-cache")
 
 def density(dataset, salinity, temperature, pressure):
     """Calculate in-situ density.
@@ -175,6 +184,25 @@ def mean(dataset, var, axis=0):
             name=dim, data=var[dim].data[:], dimensions=(dim,),
             attributes=var[dim].attributes)
     return out
+
+
+def cached_meta(filepath, handlers) :
+
+    mtime = datetime.fromtimestamp(path.getmtime(filepath))
+
+    if filepath in META_CACHE:
+        cache_time, meta = META_CACHE[filepath]
+        if mtime <= cache_time :
+            return meta
+    try:
+        handler : BaseHandler = get_handler(filepath, handlers)
+        meta = handler.get_cf_metadata()
+    except ExtensionNotSupportedError:
+        meta =  None
+
+    META_CACHE[filepath] = (mtime, meta)
+    return meta
+
 
 
 mean.__version__ = "1.0"
