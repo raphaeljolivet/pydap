@@ -131,6 +131,7 @@ class CFMetaData :
         keywords=[],
         license=None,
         geo_extent = None,
+        project= None,
         creators=[],
         publishers=[],
         **others):
@@ -143,6 +144,7 @@ class CFMetaData :
         self.geo_extent = geo_extent
         self.license = license
         self.others = others
+        self.project = project
 
     def __bool__(self):
         """ Implement truthy / flasy values to be able to do 'if metadata' """

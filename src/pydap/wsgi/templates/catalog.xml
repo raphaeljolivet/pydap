@@ -1,8 +1,9 @@
 <?xml version="1.0" ?>
+
 {% macro contact(co) %}
      <name>{{ co.name }}</name>
      {% if co.email or co.url -%}
-     <contact url="{{ co.url }}" email="{{ co.email }}" />
+     <contact url="{{ co.url if co.url }}" email="{{ co.email if co.email }}" />
      {% endif %}
 {% endmacro %}
 
@@ -26,7 +27,7 @@
                     <documentation type="summary" >{{ metadata.summary }}</documentation>
                 {%  endif %}
                 {% if metadata.license -%}
-                    <documentation type="right" >{{ metadata.license }}</documentation>
+                    <documentation type="rights" >{{ metadata.license }}</documentation>
                 {%  endif %}
 
                 {% for keyword in metadata.keywords -%}
