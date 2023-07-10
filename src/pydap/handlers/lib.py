@@ -14,6 +14,7 @@ import operator
 import itertools
 import ast
 import copy
+from types import SimpleNamespace
 
 import numpy as np
 from webob import Request
@@ -84,6 +85,43 @@ class Contact:
         self.email=email
         self.url=url
 
+class GeoExtent:
+    """Structure containing geographic extent of dataset """
+    def __init__(
+            self,
+            lat_minmax=None,
+            lon_minmax=None,
+            elev_minmax=None):
+        self.lat_minmax = lat_minmax
+        self.lon_minmax = lon_minmax
+        self.elev_minmax = elev_minmax
+
+    @classmethod
+    def from_attributes(cls, attributes):
+
+        def parse(prefix) :
+            minv = attributes.pop(prefix + "_min", None)
+            maxv = attributes.pop(prefix + "_max", None)
+            if minv is None or maxv is None:
+                return None
+            return SimpleNamespace(
+                min=float(minv),
+                max=float(maxv))
+
+        lat_minmax = parse("geospatial_lat")
+        lon_minmax = parse("geospatial_lon")
+        elev_minmax = parse("geospatial_vertical")
+
+        if lat_minmax is None or lon_minmax is None:
+            return None
+
+        return GeoExtent(
+            lat_minmax=lat_minmax,
+            lon_minmax=lon_minmax,
+            elev_minmax=elev_minmax)
+
+
+
 class CFMetaData :
     """CF and ACCD metadata extracted from the file"""
 
@@ -92,6 +130,7 @@ class CFMetaData :
         summary=None,
         keywords=[],
         license=None,
+        geo_extent = None,
         creators=[],
         publishers=[],
         **others):
@@ -101,6 +140,7 @@ class CFMetaData :
         self.keywords = keywords
         self.creators = creators
         self.publishers = publishers
+        self.geo_extent = geo_extent
         self.license = license
         self.others = others
 

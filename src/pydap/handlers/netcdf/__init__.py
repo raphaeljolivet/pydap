@@ -10,7 +10,7 @@ import numpy as np
 from pkg_resources import get_distribution
 
 from ...model import DatasetType, GridType, BaseType
-from ..lib import BaseHandler, CFMetaData, Contact
+from ..lib import BaseHandler, CFMetaData, Contact, GeoExtent
 from ...exceptions import OpenFileError
 from ...pycompat import suppress
 
@@ -122,6 +122,7 @@ class NetCDFHandler(BaseHandler):
             creators=parse_contacts(attributes, "creator"),
             project=attributes.pop("project", None),
             publishers=parse_contacts(attributes, "publisher"),
+            geo_extent=GeoExtent.from_attributes(attributes),
             **attributes) # All other attributes
 
 

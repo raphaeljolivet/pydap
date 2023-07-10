@@ -37,6 +37,36 @@
                     <project>{{ metadata.project }}</project>
                 {%  endif %}
 
+                {% if metadata.geo_extent %}
+                        <geospatialCoverage >
+
+                           {% if metadata.geo_extent.lat_minmax -%}
+                               <northsouth>
+                                 <start>{{ metadata.geo_extent.lat_minmax.min }}</start>
+                                 <size>{{ metadata.geo_extent.lat_minmax.max - metadata.geo_extent.lat_minmax.min }}</size>
+                                 <units>degrees_north</units>
+                               </northsouth>
+                           {% endif %}
+
+                           {% if metadata.geo_extent.lon_minmax -%}
+                               <eastwest>
+                                 <start>{{ metadata.geo_extent.lon_minmax.min }}</start>
+                                 <size>{{ metadata.geo_extent.lon_minmax.max - metadata.geo_extent.lon_minmax.min }}</size>
+                                 <units>degrees_east</units>
+                               </eastwest>
+                           {% endif %}
+
+                           {% if metadata.geo_extent.elev_minmax -%}
+                               <updown>
+                                 <start>{{ metadata.geo_extent.elev_minmax.min }}</start>
+                                 <size>{{ metadata.geo_extent.elev_minmax.max - metadata.geo_extent.elev_minmax.min }}</size>
+                                 <units>m</units>
+                               </updown>
+                           {% endif %}
+
+                        </geospatialCoverage>
+                {% endif %}
+
                 {% for creator in metadata.creators -%}
                     <creator>
                     {{ contact(creator) }}
